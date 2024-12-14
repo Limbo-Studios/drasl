@@ -36,10 +36,10 @@ jobs:
       - name: Build and push OCI image
         env:
           REFERENCES: ${{ steps.meta.outputs.tags }}
-          GITHUB_USERNAME: ${{ secrets.GITHUB_USERNAME }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_STOKEN }}
+          GITHUB_USERNAME: ${{ secrets.GH_USER }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "$GITHUB_STOKEN" | buildah login -u "$DOCKERHUB_USERNAME" --password-stdin ghcr.io
+          echo "$GH_TOKEN" | buildah login -u "$GH_USER" --password-stdin ghcr.io
 
           buildah manifest create drasl
 
