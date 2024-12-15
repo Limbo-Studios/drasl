@@ -36,8 +36,8 @@ jobs:
       - name: Build and push OCI image
         env:
           REFERENCES: ${{ steps.meta.outputs.tags }}
-          GITHUB_USERNAME: ${{ secrets.GH_USER }}
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_USERNAME: ${{ secrets.GH_USER }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           echo "$GH_TOKEN" | buildah login -u "$GH_USER" --password-stdin ghcr.io
 
