@@ -36,10 +36,10 @@ jobs:
       - name: Build and push OCI image
         env:
           REFERENCES: ${{ steps.meta.outputs.tags }}
-          GH_USERNAME: ${{ secrets.GH_USER }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GHP_USERNAME: ${{ secrets.GH_USER }}
+          GHP_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "$GH_TOKEN" | buildah login -u "$GH_USER" --password-stdin ghcr.io
+          echo "$GHP_TOKEN" | buildah login -u "$GHP_USERNAME" --password-stdin ghcr.io
 
           buildah manifest create drasl
 
