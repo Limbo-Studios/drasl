@@ -1,0 +1,18 @@
+# This is the Drasl default config file, for a proper setup, please, refer to https://github.com/unmojang/drasl/blob/master/doc/configuration.md
+
+# Example: 0.0.0.0:25585
+ListenAddress: ""
+
+# Example: drasl.example.com
+Domain = ""
+
+# Example: https://drasl.example.com
+BaseURL = ""
+
+# List of usernames who automatically become admins of the Drasl instance
+DefaultAdmins = [""]
+
+[RegistrationNewPlayer]
+Allow = true
+AllowChoosingUUID = true
+RequireInvite = true
