@@ -52,6 +52,30 @@ cd /srv/drasl
 docker compose pull && docker compose up -d
 ```
 
+### Pelican panel
+
+You can host a Drasl Instance with a custom docker image designed for Pelican panel. this is NOT an official Drasl egg and it's meant to be a placeholder until an official egg is released
+
+You'll still need access to the wings SSH server in order to set the Nginx config file and you'll also need admin access to the panel.
+
+1. In the pelican Admin zone, go to the 'eggs' tab and import an egg via URL with this link:
+
+   `https://raw.githubusercontent.com/Limbo-Studios/drasl/refs/heads/master/example/pelican-panel/egg-drasl-authserver-egg.json`
+
+2. Create a server with the `Drasl Authserver Egg` by selecting your preferred Image and set up the mandatory variables
+
+Altough you can use any webserver, the reverse proxy config in this tutorial is for Nginx
+
+3. get the SSL certificates for your domain
+
+3. Download and replace the indicated strings in `example/pelican-panel/DraslNginx.conf`, then move your nginx config file to `/etc/nginx/sites-enabled`
+
+4. Get the container up and then restart nginx
+
+5. Done! Altough the Drasl instance is working with the minimal setup, it's recommended to edit `config.toml` according to one of the examples in [doc/recipes.md](recipes.md).
+
+Note: when Drasl updates, you will have to be using the `latest` image to autoupdate the instance via a container reboot.
+
 ### Arch Linux (AUR)
 
 Drasl is available in the AUR as `drasl-git`:

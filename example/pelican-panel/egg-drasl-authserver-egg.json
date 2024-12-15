@@ -1,0 +1,73 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PANEL",
+    "meta": {
+        "version": "PLCN_v1",
+        "update_url": "https:\/\/raw.githubusercontent.com\/Limbo-Studios\/drasl\/refs\/heads\/master\/example\/pelican-panel\/egg-drasl-authserver-egg.json"
+    },
+    "exported_at": "2024-12-15T09:08:36+00:00",
+    "name": "Drasl Authserver Egg",
+    "author": "support@lsmp.site",
+    "uuid": "7a7d1809-7361-4474-9966-f9c2b57472c7",
+    "description": "## THIS IS NOT AN OFFICIAL DRASL PELICAN EGG, THIS IS A FORK MADE FOR COMPATIBILITY WITH THE PELICAN PANEL\n\nDrasl is an alternative API server for Minecraft that handles authentication, skins, and capes. You can use it to host Minecraft servers that are completely independent from Mojang's infrastructure.",
+    "features": [],
+    "docker_images": {
+        "Latest": "ghcr.io\/limbo-studios\/drasl:latest",
+        "2.1.1": "ghcr.io\/limbo-studios\/drasl:2.1.1"
+    },
+    "file_denylist": [],
+    "startup": "{{STARTUP_CMD}}",
+    "config": {
+        "files": "{\n    \"config.toml\": {\n        \"parser\": \"file\",\n        \"find\": {\n            \"ListenAddress\": \"ListenAddress = \\\"0.0.0.0:{{server.allocations.default.port}}\\\"\",\n            \"Domain\": \"Domain = \\\"{{env.DRASL_DOMAIN}}\\\"\",\n            \"BaseURL\":\"BaseURL = \\\"{{env.DRASL_BASEURL}}\\\"\",\n            \"DefaultAdmins\":\"DefaultAdmins = [\\\"{{env.DRASL_DEFAULT_ADMINS}}\\\"]\"\n        }\n    }\n}",
+        "startup": "{\n    \"done\": \"http server started\",\n    \"userInteraction\": []\n}",
+        "logs": "{\n    \"custom\": true,\n    \"location\": \"logs\/latest.log\"\n}",
+        "stop": "^SIGTERM"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!\/bin\/ash\r\ncd \/mnt\/server\r\n\r\nmkdir data\r\n\r\n\r\necho -e \"Data folder created successfully\"\r\n\r\nwget https:\/\/raw.githubusercontent.com\/Limbo-Studios\/drasl\/refs\/heads\/master\/example\/pelican-panel\/config.toml\r\n\r\nexport DRASL_DEBUG=1\r\n\r\necho -e \"Initial config placed successfully\"",
+            "container": "alpine:latest",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Drasl Domain",
+            "description": "The fully qualified domain name where your instance is hosted. Clients using authlib-injector may not see skins if this option is not correctly set.",
+            "env_variable": "DRASL_DOMAIN",
+            "default_value": "drasl.example.com",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "string"
+            ],
+            "sort": 1
+        },
+        {
+            "name": "Drasl BaseURL",
+            "description": "the URL of your instance.",
+            "env_variable": "DRASL_BASEURL",
+            "default_value": "https:\/\/drasl.example.com",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "string"
+            ],
+            "sort": 2
+        },
+        {
+            "name": "DefaultAdmins",
+            "description": "Usernames of the instance's permanent admins. Admin rights can be granted to other accounts using the web UI, but admins defined via DefaultAdmins cannot be demoted unless they are removed from the config file. ",
+            "env_variable": "DRASL_DEFAULT_ADMINS",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": [
+                "required",
+                "string"
+            ],
+            "sort": 3
+        }
+    ]
+}
