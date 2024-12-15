@@ -1,4 +1,7 @@
-# This is the Drasl default config file, for a proper setup, please, refer to https://github.com/unmojang/drasl/blob/master/doc/configuration.md
+# This is the Drasl default config file, for a basic setup
+# please refer to https://github.com/unmojang/drasl/blob/master/doc/recipes.md
+# or for an extended config file
+# please refer to https://github.com/unmojang/drasl/blob/master/doc/configuration.md
 
 # Example: 0.0.0.0:25585
 ListenAddress = ""
