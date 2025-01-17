@@ -14,7 +14,7 @@
     nixpkgs,
     buildNodeModules,
   }: let
-    version = "2.1.0";
+    version = "2.1.1";
 
     supportedSystems = ["x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin"];
 
@@ -48,7 +48,7 @@
           ];
 
           # Update whenever Go dependencies change
-          vendorHash = "sha256-XLkICl7cL6FaWArl99xUH6kYLxHAZ/VsS0sP3d4yLws=";
+          vendorHash = "sha256-q+wp+1y0oFMuUCq2RTDHuH/XfiUkff+bnHJH+06iRBk=";
 
           outputs = ["out"];
 
