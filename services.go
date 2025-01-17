@@ -20,8 +20,8 @@ import (
 )
 
 // Authenticate a user using a bearer token, and call `f` with a reference to
-// the user
-func withBearerAuthentication(app *App, f func(c echo.Context, user *User) error) func(c echo.Context) error {
+// the player
+func withBearerAuthentication(app *App, f func(c echo.Context, player *Player) error) func(c echo.Context) error {
 	bearerExp := regexp.MustCompile("^Bearer (.*)$")
 
 	return func(c echo.Context) error {
@@ -40,9 +40,12 @@ func withBearerAuthentication(app *App, f func(c echo.Context, user *User) error
 		if client == nil {
 			return c.JSON(http.StatusUnauthorized, ErrorResponse{Path: Ptr(c.Request().URL.Path)})
 		}
-		user := client.User
+		player := client.Player
+		if player == nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Path: Ptr(c.Request().URL.Path), ErrorMessage: Ptr("Access token does not have a selected profile.")})
+		}
 
-		return f(c, &user)
+		return f(c, player)
 	}
 }
 
@@ -57,18 +60,18 @@ type ServicesProfile struct {
 	ID    string                `json:"id"`
 	Name  string                `json:"name"`
 	Skins []ServicesProfileSkin `json:"skins"`
-	Capes []string              `json:"capes"` // TODO implement capes, they are undocumented on https://wiki.vg/Mojang_API#Profile_Information
+	Capes []string              `json:"capes"` // TODO implement capes, they are documented at https://minecraft.wiki/w/Mojang_API#Query_player_profile
 }
 
-func getServicesProfile(app *App, user *User) (ServicesProfile, error) {
-	id, err := UUIDToID(user.UUID)
+func getServicesProfile(app *App, player *Player) (ServicesProfile, error) {
+	id, err := UUIDToID(player.UUID)
 	if err != nil {
 		return ServicesProfile{}, nil
 	}
 
 	getServicesProfileSkin := func() *ServicesProfileSkin {
-		if !user.SkinHash.Valid && !user.CapeHash.Valid && app.Config.ForwardSkins {
-			fallbackProperty, err := app.GetFallbackSkinTexturesProperty(user)
+		if !player.SkinHash.Valid && !player.CapeHash.Valid && app.Config.ForwardSkins {
+			fallbackProperty, err := app.GetFallbackSkinTexturesProperty(player)
 			if err != nil {
 				return nil
 			}
@@ -86,22 +89,22 @@ func getServicesProfile(app *App, user *User) (ServicesProfile, error) {
 				}
 
 				return &ServicesProfileSkin{
-					ID:      user.UUID,
+					ID:      player.UUID,
 					State:   "ACTIVE",
 					URL:     fallbackTexturesValue.Textures.Skin.URL,
 					Variant: strings.ToUpper(fallbackTexturesValue.Textures.Skin.Metadata.Model),
 				}
 			}
-		} else if user.SkinHash.Valid {
-			skinURL, err := app.SkinURL(user.SkinHash.String)
+		} else if player.SkinHash.Valid {
+			skinURL, err := app.SkinURL(player.SkinHash.String)
 			if err != nil {
 				return nil
 			}
 			return &ServicesProfileSkin{
-				ID:      user.UUID,
+				ID:      player.UUID,
 				State:   "ACTIVE",
 				URL:     skinURL,
-				Variant: strings.ToUpper(user.SkinModel),
+				Variant: strings.ToUpper(player.SkinModel),
 			}
 		}
 
@@ -115,17 +118,17 @@ func getServicesProfile(app *App, user *User) (ServicesProfile, error) {
 
 	return ServicesProfile{
 		ID:    id,
-		Name:  user.PlayerName,
+		Name:  player.Name,
 		Skins: skins,
 		Capes: []string{},
 	}, nil
 }
 
 // GET /minecraft/profile
-// https://wiki.vg/Mojang_API#Profile_Information
+// https://minecraft.wiki/w/Mojang_API#Query_player_profile
 func ServicesProfileInformation(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
-		servicesProfile, err := getServicesProfile(app, user)
+	return withBearerAuthentication(app, func(c echo.Context, player *Player) error {
+		servicesProfile, err := getServicesProfile(app, player)
 		if err != nil {
 			return err
 		}
@@ -157,9 +160,9 @@ type playerAttributesResponse struct {
 }
 
 // GET /player/attributes
-// https://wiki.vg/Mojang_API#Player_Attributes
+// https://minecraft.wiki/w/Mojang_API#Query_player_attributes
 func ServicesPlayerAttributes(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, _ *User) error {
+	return withBearerAuthentication(app, func(c echo.Context, _ *Player) error {
 		res := playerAttributesResponse{
 			Privileges: playerAttributesPrivileges{
 				OnlineChat:        playerAttributesToggle{Enabled: true},
@@ -191,9 +194,9 @@ type playerCertificatesResponse struct {
 }
 
 // POST /player/certificates
-// https://wiki.vg/Mojang_API#Player_Certificates
+// https://minecraft.wiki/w/Mojang_API#Get_keypair_for_signature
 func ServicesPlayerCertificates(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
+	return withBearerAuthentication(app, func(c echo.Context, player *Player) error {
 		key, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
 			return err
@@ -281,7 +284,7 @@ func ServicesPlayerCertificates(app *App) func(c echo.Context) error {
 			signedDataV2 := make([]byte, 0, 24+len(pubDER))
 
 			// The first 16 bytes (128 bits) are the player's UUID
-			userId, err := UUIDToID(user.UUID)
+			userId, err := UUIDToID(player.UUID)
 			if err != nil {
 				return err
 			}
@@ -320,9 +323,9 @@ func ServicesPlayerCertificates(app *App) func(c echo.Context) error {
 }
 
 // POST /minecraft/profile/skins
-// https://wiki.vg/Mojang_API#Upload_Skin
+// https://minecraft.wiki/w/Mojang_API#Upload_skin
 func ServicesUploadSkin(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
+	return withBearerAuthentication(app, func(c echo.Context, player *Player) error {
 		if !app.Config.AllowSkins {
 			return MakeErrorResponse(&c, http.StatusBadRequest, nil, Ptr("Changing your skin is not allowed."))
 		}
@@ -332,7 +335,7 @@ func ServicesUploadSkin(app *App) func(c echo.Context) error {
 		if !IsValidSkinModel(model) {
 			return MakeErrorResponse(&c, http.StatusBadRequest, nil, Ptr("Invalid request body for skin upload"))
 		}
-		user.SkinModel = model
+		player.SkinModel = model
 
 		file, err := c.FormFile("file")
 		if err != nil {
@@ -345,12 +348,12 @@ func ServicesUploadSkin(app *App) func(c echo.Context) error {
 		}
 		defer src.Close()
 
-		err = app.SetSkinAndSave(user, src)
+		err = app.SetSkinAndSave(player, src)
 		if err != nil {
 			return MakeErrorResponse(&c, http.StatusBadRequest, nil, Ptr("Could not read image data."))
 		}
 
-		servicesProfile, err := getServicesProfile(app, user)
+		servicesProfile, err := getServicesProfile(app, player)
 		if err != nil {
 			return err
 		}
@@ -359,10 +362,10 @@ func ServicesUploadSkin(app *App) func(c echo.Context) error {
 }
 
 // DELETE /minecraft/profile/skins/active
-// https://wiki.vg/Mojang_API#Reset_Skin
+// https://minecraft.wiki/w/Mojang_API#Reset_skin
 func ServicesResetSkin(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
-		err := app.SetSkinAndSave(user, nil)
+	return withBearerAuthentication(app, func(c echo.Context, player *Player) error {
+		err := app.SetSkinAndSave(player, nil)
 		if err != nil {
 			return err
 		}
@@ -372,10 +375,10 @@ func ServicesResetSkin(app *App) func(c echo.Context) error {
 }
 
 // DELETE /minecraft/profile/capes/active
-// https://wiki.vg/Mojang_API#Hide_Cape
+// https://minecraft.wiki/w/Mojang_API#Hide_cape
 func ServicesHideCape(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
-		err := app.SetCapeAndSave(user, nil)
+	return withBearerAuthentication(app, func(c echo.Context, player *Player) error {
+		err := app.SetCapeAndSave(player, nil)
 		if err != nil {
 			return err
 		}
@@ -391,11 +394,11 @@ type nameChangeResponse struct {
 }
 
 // GET /minecraft/profile/namechange
-// https://wiki.vg/Mojang_API#Profile_Name_Change_Information
+// https://minecraft.wiki/w/Mojang_API#Query_player's_name_change_information
 func ServicesNameChange(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
-		changedAt := user.NameLastChangedAt.Format(time.RFC3339Nano)
-		createdAt := user.CreatedAt.Format(time.RFC3339Nano)
+	return withBearerAuthentication(app, func(c echo.Context, player *Player) error {
+		changedAt := player.NameLastChangedAt.Format(time.RFC3339Nano)
+		createdAt := player.CreatedAt.Format(time.RFC3339Nano)
 		res := nameChangeResponse{
 			ChangedAt:         changedAt,
 			CreatedAt:         createdAt,
@@ -406,13 +409,12 @@ func ServicesNameChange(app *App) func(c echo.Context) error {
 }
 
 // GET /rollout/v1/msamigration
-// https://wiki.vg/Mojang_API#Get_Account_Migration_Information
 func ServicesMSAMigration(app *App) func(c echo.Context) error {
 	type msaMigrationResponse struct {
 		Feature string `json:"feature"`
 		Rollout bool   `json:"rollout"`
 	}
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
+	return withBearerAuthentication(app, func(c echo.Context, _ *Player) error {
 		res := msaMigrationResponse{
 			Feature: "msamigration",
 			Rollout: false,
@@ -426,9 +428,9 @@ type blocklistResponse struct {
 }
 
 // GET /privacy/blocklist
-// https://wiki.vg/Mojang_API#Player_Blocklist
+// https://minecraft.wiki/w/Mojang_API#Get_list_of_blocked_users
 func ServicesBlocklist(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
+	return withBearerAuthentication(app, func(c echo.Context, _ *Player) error {
 		res := blocklistResponse{
 			BlockedProfiles: []string{},
 		}
@@ -441,9 +443,9 @@ type nameAvailabilityResponse struct {
 }
 
 // GET /minecraft/profile/name/:playerName/available
-// https://wiki.vg/Mojang_API#Name_Availability
+// https://minecraft.wiki/w/Mojang_API#Check_name_availability
 func ServicesNameAvailability(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
+	return withBearerAuthentication(app, func(c echo.Context, player *Player) error {
 		playerName := c.Param("playerName")
 		if !app.Config.AllowChangingPlayerName {
 			return c.JSON(http.StatusOK, nameAvailabilityResponse{Status: "NOT_ALLOWED"})
@@ -452,8 +454,8 @@ func ServicesNameAvailability(app *App) func(c echo.Context) error {
 			errorMessage := fmt.Sprintf("checkNameAvailability.profileName: %s, checkNameAvailability.profileName: Invalid profile name", err.Error())
 			return MakeErrorResponse(&c, http.StatusBadRequest, Ptr("CONSTRAINT_VIOLATION"), Ptr(errorMessage))
 		}
-		var otherUser User
-		result := app.DB.First(&otherUser, "player_name = ?", playerName)
+		var otherPlayer Player
+		result := app.DB.First(&otherPlayer, "name = ?", playerName)
 		if result.Error != nil {
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 				return c.JSON(http.StatusOK, nameAvailabilityResponse{Status: "AVAILABLE"})
@@ -477,9 +479,9 @@ type changeNameErrorResponse struct {
 }
 
 // PUT /minecraft/profile/name/:playerName
-// https://wiki.vg/Mojang_API#Change_Name
+// https://minecraft.wiki/w/Mojang_API#Change_name
 func ServicesChangeName(app *App) func(c echo.Context) error {
-	return withBearerAuthentication(app, func(c echo.Context, user *User) error {
+	return withBearerAuthentication(app, func(c echo.Context, player *Player) error {
 		playerName := c.Param("playerName")
 		if err := app.ValidatePlayerName(playerName); err != nil {
 			return c.JSON(http.StatusBadRequest, changeNameErrorResponse{
@@ -490,10 +492,10 @@ func ServicesChangeName(app *App) func(c echo.Context) error {
 				DeveloperMessage: err.Error(),
 			})
 		}
-		if user.PlayerName != playerName {
+		if player.Name != playerName {
 			if app.Config.AllowChangingPlayerName {
-				user.PlayerName = playerName
-				user.NameLastChangedAt = time.Now()
+				player.Name = playerName
+				player.NameLastChangedAt = time.Now()
 			} else {
 				message := "Changing your player name is not allowed."
 				return c.JSON(http.StatusBadRequest, changeNameErrorResponse{
@@ -506,7 +508,7 @@ func ServicesChangeName(app *App) func(c echo.Context) error {
 			}
 		}
 
-		err := app.DB.Save(&user).Error
+		err := app.DB.Save(&player).Error
 		if err != nil {
 			if IsErrorUniqueFailed(err) {
 				message := "That player name is taken."
@@ -524,7 +526,7 @@ func ServicesChangeName(app *App) func(c echo.Context) error {
 			return err
 		}
 
-		profile, err := getServicesProfile(app, user)
+		profile, err := getServicesProfile(app, player)
 		if err != nil {
 			return err
 		}
@@ -560,6 +562,7 @@ func SerializedKeyToPublicKey(serializedKey SerializedKey) (*rsa.PublicKey, erro
 }
 
 // GET /publickeys
+// https://minecraft.wiki/w/Mojang_API#Get_Mojang_public_keys
 func ServicesPublicKeys(app *App) func(c echo.Context) error {
 	serializedProfilePropertyKeys := make([]SerializedKey, 0, len(app.ProfilePropertyKeys))
 	serializedPlayerCertificateKeys := make([]SerializedKey, 0, len(app.PlayerCertificateKeys))

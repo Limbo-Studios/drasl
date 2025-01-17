@@ -71,6 +71,7 @@ type Config struct {
 	DataDirectory              string
 	DefaultAdmins              []string
 	DefaultPreferredLanguage   string
+	DefaultMaxPlayerCount      int
 	Domain                     string
 	EnableBackgroundEffect     bool
 	EnableFooter               bool
@@ -80,6 +81,7 @@ type Config struct {
 	ListenAddress              string
 	LogRequests                bool
 	MinPasswordLength          int
+	PreMigrationBackups        bool
 	RateLimit                  rateLimitConfig
 	RegistrationExistingPlayer registrationExistingPlayerConfig
 	RegistrationNewPlayer      registrationNewPlayerConfig
@@ -114,9 +116,10 @@ func DefaultConfig() Config {
 		ApplicationOwner:         "Anonymous",
 		BaseURL:                  "",
 		BodyLimit:                defaultBodyLimitConfig,
-		DataDirectory:            DEFAULT_DATA_DIRECTORY,
+		DataDirectory:            GetDefaultDataDirectory(),
 		DefaultAdmins:            []string{},
 		DefaultPreferredLanguage: "en",
+		DefaultMaxPlayerCount:    1,
 		Domain:                   "",
 		EnableBackgroundEffect:   true,
 		EnableFooter:             true,
@@ -126,6 +129,7 @@ func DefaultConfig() Config {
 		LogRequests:              true,
 		MinPasswordLength:        8,
 		OfflineSkins:             true,
+		PreMigrationBackups:      true,
 		RateLimit:                defaultRateLimitConfig,
 		RegistrationExistingPlayer: registrationExistingPlayerConfig{
 			Allow: false,
@@ -143,7 +147,7 @@ func DefaultConfig() Config {
 		},
 		SignPublicKeys: true,
 		SkinSizeLimit:  128,
-		StateDirectory: DEFAULT_STATE_DIRECTORY,
+		StateDirectory: GetDefaultStateDirectory(),
 		TestMode:       false,
 		TokenExpireSec: 0,
 		TokenStaleSec:  0,
@@ -177,6 +181,9 @@ func CleanConfig(config *Config) error {
 	}
 	if _, err := os.Open(config.DataDirectory); err != nil {
 		return fmt.Errorf("Couldn't open DataDirectory: %s", err)
+	}
+	if config.DefaultMaxPlayerCount < 0 {
+		return errors.New("DefaultMaxPlayerCount must be >= 0")
 	}
 	if config.RegistrationExistingPlayer.Allow {
 		if config.RegistrationExistingPlayer.Nickname == "" {
